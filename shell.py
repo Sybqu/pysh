@@ -33,6 +33,31 @@ def export(assignments: list[str]) -> None:
         os.environ[name] = value
 
 
+def run_external(command: str, tokens: list[str]) -> int:
+    # Flush before fork so buffered output is not copied into the child.
+    sys.stdout.flush()
+    sys.stderr.flush()
+    try:
+        pid = os.fork()
+    except OSError as error:
+        # Fork raised an exception, so there is no pid to use after this point.
+        print(f"pysh: fork: {error}", file=sys.stderr)
+        return 1
+
+    if pid > 0:
+        # The parent got the child's real PID; waitpid collects that child.
+        _, wait_status = os.waitpid(pid, 0)
+        return os.waitstatus_to_exitcode(wait_status)
+
+    try:
+        # pid == 0 marks this branch as the child; exec replaces this process.
+        os.execvp(command, tokens)
+    except OSError as error:
+        # Only an exec failure gets here. End the child, not the shell parent.
+        print(f"pysh: {command}: {error.strerror or error}", file=sys.stderr, flush=True)
+        os._exit(127 if isinstance(error, FileNotFoundError) else 126)
+
+
 def handle_command(tokens: list[str]) -> bool:
     command, *args = tokens
 
@@ -46,8 +71,10 @@ def handle_command(tokens: list[str]) -> bool:
     elif command == "exit":
         print("okie bye bye have a nice day!")
         return False
+    else:
+        # A command's exit status is not the bool that controls PYSH's loop.
+        run_external(command, tokens)
 
-    print(tokens)
     return True
 
 
@@ -62,9 +89,9 @@ def main() -> None:
             break
 
         try:
-           tokens = shlex.split(line,comments=False,posix=True)
-        except(ValueError):
-            print("value error in tokens if it happens fucking figure out was wrong wit it \n")
+            tokens = shlex.split(line, comments=False, posix=True)
+        except ValueError as error:
+            print(f"pysh: parse: {error}", file=sys.stderr)
             continue
         if not tokens:
             continue
