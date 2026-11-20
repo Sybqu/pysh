@@ -61,7 +61,11 @@ def main() -> None:
         if line == "":
             break
 
-        tokens = line.split()
+        try:
+           tokens = shlex.split(line,comments=False,posix=True)
+        except(ValueError):
+            print("value error in tokens if it happens fucking figure out was wrong wit it \n")
+            continue
         if not tokens:
             continue
 
