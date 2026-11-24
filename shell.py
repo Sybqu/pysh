@@ -78,6 +78,45 @@ def handle_command(tokens: list[str]) -> bool:
     return True
 
 
+def parse_pipeline(tokens: list[str]) -> list[list[str]]:
+    # Collect arguments until a pipe starts the next command.
+    commands = []
+    current = []
+
+    for token in tokens:
+        if token == "|":
+            if not current:
+                raise ValueError("empty command in pipeline")
+            commands.append(current)
+            current = []
+        else:
+            current.append(token)
+
+    if not current:
+        raise ValueError("empty command at end of pipeline")
+    commands.append(current)
+
+    return commands
+
+
+def run_pipeline(commands: list[list[str]]) -> int:
+    # Draft only: pipes, child execution, and handling multiple commands remain to do.
+    try:
+        pid = os.fork()
+    except OSError as error:
+        # Fork raised an exception, so there is no pid to use after this point.
+        print(f"pysh: fork: {error}", file=sys.stderr)
+        return 1
+
+    if pid:
+        # The parent got the child's real PID; waitpid collects that child.
+        _, wait_status = os.waitpid(pid, 0)
+        return os.waitstatus_to_exitcode(wait_status)
+
+    # Do not let an unfinished child return to the interactive shell loop.
+    os._exit(1)
+
+
 def main() -> None:
     print("Welcome to PYSH \n")
     while True:
@@ -89,7 +128,10 @@ def main() -> None:
             break
 
         try:
-            tokens = shlex.split(line, comments=False, posix=True)
+            lexer = shlex.shlex(line, posix=True, punctuation_chars="|")
+            lexer.whitespace_split = True
+            lexer.commenters = ""
+            tokens = list(lexer)
         except ValueError as error:
             print(f"pysh: parse: {error}", file=sys.stderr)
             continue

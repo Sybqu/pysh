@@ -4,10 +4,10 @@ This file is a handoff for continuing Stage 2 work in a new chat. See [ROADMAP.m
 
 ## Current state
 
-- `shell.py` reads one line at a time and uses `shlex.split()` for words and quotes.
+- `shell.py` reads one line at a time and now uses a configurable `shlex.shlex` lexer that separates pipe punctuation. The main loop does not yet dispatch pipeline tokens to the new parser.
 - `cd`, `export`, and `exit` are builtins that run in the shell process.
 - External commands use `os.fork()`, `os.execvp()`, and `os.waitpid()`. `run_external()` returns a decoded numeric exit status, but the main loop does not retain or display it yet.
-- The Stage 1 Linux smoke check in `NOTES.md` is still pending. Stage 2 status and pipelines have not been implemented.
+- The Stage 1 Linux smoke check in `NOTES.md` is still pending. Stage 2 status and pipelines have not been implemented. Draft `parse_pipeline()` groups tokens; draft `run_pipeline()` has only an initial fork/wait skeleton and is not called.
 
 ## Stage 2 goal and design discussed
 
